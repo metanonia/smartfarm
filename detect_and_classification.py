@@ -14,6 +14,8 @@ class_names = ['열매_잿빛곰팡이병', '열매_흰가루병', '잎_흰가�
 # 테스트 이미지 및 JSON 경로
 test_image_dir = 'Data/Images/Validation/VS_딸기_병해충피해이미지'
 test_json_dir = 'Data/Json/Validation/VL_딸기_병해충피해이미지'
+# test_image_dir = 'Data/Images/Validation/VS_딸기_해충트랩'
+# test_json_dir = 'Data/Json/Validation/VL_딸기_해충트랩'
 
 
 def load_ground_truth(json_path):
@@ -51,7 +53,7 @@ def detect_and_classify(image_path, json_path):
 
     # JSON에서 정답 로드
     ground_truth, gt_bboxes = load_ground_truth(json_path)
-    has_disease = len(gt_bboxes) > 0  # 실제로 병이 있는지
+    has_disease = ground_truth in class_names  # 실제로 병이 있는지
 
     print(f"\n{'=' * 60}")
     print(f"Processing: {os.path.basename(image_path)}")
@@ -204,11 +206,11 @@ def process_test_dataset(image_dir, json_dir):
 # 단일 이미지 테스트
 if __name__ == "__main__":
     # 단일 이미지 테스트
-    test_image = 'Data/Images/Validation/VS_딸기_병해충피해이미지/V003_5_2_1_2_4_3_4_1_0_0_20221210_4458_20240422174546.jpg'
-    test_json = 'Data/Json/Validation/VL_딸기_병해충피해이미지/V003_5_2_1_2_4_3_4_1_0_0_20221210_4458_20240422174546.json'
-
-    if os.path.exists(test_image) and os.path.exists(test_json):
-        detect_and_classify(test_image, test_json)
+    # test_image = 'Data/Images/Validation/VS_딸기_병해충피해이미지/V003_5_2_1_2_4_3_4_1_0_0_20221210_4458_20240422174546.jpg'
+    # test_json = 'Data/Json/Validation/VL_딸기_병해충피해이미지/V003_5_2_1_2_4_3_4_1_0_0_20221210_4458_20240422174546.json'
+    #
+    # if os.path.exists(test_image) and os.path.exists(test_json):
+    #     detect_and_classify(test_image, test_json)
 
     # 전체 데이터셋 테스트
     print("\n\nProcessing entire validation dataset...")
