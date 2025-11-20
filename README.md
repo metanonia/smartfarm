@@ -14,7 +14,7 @@
 ```yolo classify train data=Yolo_Classification model=yolo11n-cls.pt epochs=100 imgsz=224```
 
 ### Test (Dection + Classification)
-
+```python detect_and_classification.py```
 
 ### [참고]
 #### Dectection With Class
