@@ -3,3 +3,5 @@
 /Yolo
 /Yolo_Classification
 /Models
+**/**.pt
+**/**.tar
