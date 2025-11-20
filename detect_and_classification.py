@@ -47,29 +47,46 @@ def detect_and_classify(image_path, json_path):
     img = cv2.imread(image_path)
     if img is None:
         print(f"Error: Cannot load image {image_path}")
-        return
+        return None
 
     # JSON에서 정답 로드
     ground_truth, gt_bboxes = load_ground_truth(json_path)
+    has_disease = len(gt_bboxes) > 0  # 실제로 병이 있는지
+
     print(f"\n{'=' * 60}")
     print(f"Processing: {os.path.basename(image_path)}")
     print(f"Ground Truth: {ground_truth}")
     print(f"Ground Truth BBoxes: {len(gt_bboxes)} boxes")
+    print(f"Has Disease: {'Yes' if has_disease else 'No'}")
 
     # 1단계: 탐지 (병 유무 검출)
     detection_results = detection_model.predict(image_path, conf=0.3)
+    num_detected = len(detection_results[0].boxes)
 
-    if len(detection_results[0].boxes) == 0:
+    # Detection 성공 여부 (병이 있으면 검출해야 하고, 없으면 검출하지 않아야 함)
+    detection_success = (num_detected > 0 and has_disease) or (num_detected == 0 and not has_disease)
+
+    if num_detected == 0:
         print("No disease detected.")
-        return
+        return {
+            'has_disease': has_disease,
+            'detected': 0,
+            'detection_success': detection_success,
+            'classified_regions': 0,
+            'correct_classification': 0,
+            'ground_truth': ground_truth
+        }
 
-    print(f"Detected {len(detection_results[0].boxes)} regions")
+    print(f"Detected {num_detected} regions")
 
     # 2단계: 각 검출 영역을 크롭하여 분류
     predictions = []
+    correct_classification = 0
+
     for i, box in enumerate(detection_results[0].boxes):
         # bbox 좌표 (xyxy 형식)
         x1, y1, x2, y2 = map(int, box.xyxy[0].cpu().numpy())
+        detection_conf = float(box.conf[0])
 
         # 크롭
         cropped = img[y1:y2, x1:x2]
@@ -88,25 +105,31 @@ def detect_and_classify(image_path, json_path):
         predictions.append({
             'bbox': (x1, y1, x2, y2),
             'class': pred_cls_name,
-            'confidence': pred_conf
+            'confidence': pred_conf,
+            'detection_conf': detection_conf
         })
 
-        print(f"  Region {i + 1}: {pred_cls_name} (conf: {pred_conf:.2f})")
+        # 병명까지 정확한지 확인
+        if pred_cls_name == ground_truth:
+            correct_classification += 1
+
+        print(f"  Region {i + 1}: {pred_cls_name} (cls_conf: {pred_conf:.2f}, det_conf: {detection_conf:.2f})")
 
         # 시각화용 박스 그리기
-        cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        color = (0, 255, 0) if pred_cls_name == ground_truth else (0, 0, 255)
+        cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
         cv2.putText(img, f"{pred_cls_name} {pred_conf:.2f}",
                     (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (0, 255, 0), 2)
+                    0.5, color, 2)
 
-    # 정답과 비교
-    correct = 0
-    for pred in predictions:
-        if pred['class'] == ground_truth:
-            correct += 1
+    # Classification Accuracy 계산
+    classification_accuracy = correct_classification / num_detected if num_detected > 0 else 0
 
-    accuracy = correct / len(predictions) if predictions else 0
-    print(f"\nAccuracy: {correct}/{len(predictions)} ({accuracy * 100:.1f}%)")
+    print(f"\n--- Results ---")
+    print(f"Detection Success: {'✓' if detection_success else '✗'}")
+    print(f"Detected Regions: {num_detected}")
+    print(f"Classified Regions: {num_detected}")
+    print(f"Correct Classification: {correct_classification}/{num_detected} ({classification_accuracy * 100:.1f}%)")
 
     # 결과 이미지 저장
     output_dir = 'Results'
@@ -115,15 +138,25 @@ def detect_and_classify(image_path, json_path):
     cv2.imwrite(output_path, img)
     print(f"Result saved to: {output_path}")
 
-    return predictions, ground_truth, accuracy
+    return {
+        'has_disease': has_disease,
+        'detected': num_detected,
+        'detection_success': detection_success,
+        'classified_regions': num_detected,
+        'correct_classification': correct_classification,
+        'ground_truth': ground_truth
+    }
 
 
 def process_test_dataset(image_dir, json_dir):
     """전체 테스트 데이터셋 처리"""
     image_files = [f for f in os.listdir(image_dir) if f.endswith(('.jpg', '.png', '.jpeg'))]
 
-    total_correct = 0
-    total_predictions = 0
+    total_images = 0
+    total_detection_success = 0
+    total_detected = 0
+    total_classified = 0
+    total_correct_classification = 0
 
     for image_file in image_files:
         image_path = os.path.join(image_dir, image_file)
@@ -134,16 +167,38 @@ def process_test_dataset(image_dir, json_dir):
             print(f"Warning: JSON not found for {image_file}")
             continue
 
-        predictions, ground_truth, accuracy = detect_and_classify(image_path, json_path)
+        result = detect_and_classify(image_path, json_path)
 
-        if predictions:
-            correct = sum(1 for p in predictions if p['class'] == ground_truth)
-            total_correct += correct
-            total_predictions += len(predictions)
+        if result:
+            total_images += 1
+            if result['detection_success']:
+                total_detection_success += 1
+            total_detected += result['detected']
+            total_classified += result['classified_regions']
+            total_correct_classification += result['correct_classification']
 
-    overall_accuracy = total_correct / total_predictions if total_predictions > 0 else 0
+    # 전체 통계
+    detection_success_rate = total_detection_success / total_images if total_images > 0 else 0
+    classification_accuracy = total_correct_classification / total_classified if total_classified > 0 else 0
+
     print(f"\n{'=' * 60}")
-    print(f"Overall Accuracy: {total_correct}/{total_predictions} ({overall_accuracy * 100:.1f}%)")
+    print(f"=== Overall Statistics ===")
+    print(f"Processed Images: {total_images}")
+    print(f"\n[Detection Performance]")
+    print(f"Detection Success: {total_detection_success}/{total_images} ({detection_success_rate * 100:.1f}%)")
+    print(f"  → 병 있으면 검출, 병 없으면 미검출 성공률")
+    print(f"\n[Classification Performance]")
+    print(f"Total Detected Regions: {total_detected}")
+    print(f"Total Classified Regions: {total_classified}")
+    print(
+        f"Correct Classifications: {total_correct_classification}/{total_classified} ({classification_accuracy * 100:.1f}%)")
+    print(f"  → 검출된 영역 중 병명까지 정확히 맞춘 비율")
+
+    print(f"\n{'=' * 60}")
+    print(f"Pipeline Performance:")
+    print(f"  1) Detection Success Rate: {detection_success_rate * 100:.1f}%")
+    print(f"  2) Classification Accuracy: {classification_accuracy * 100:.1f}%")
+    print(f"  3) End-to-End Accuracy: {detection_success_rate * classification_accuracy * 100:.1f}%")
 
 
 # 단일 이미지 테스트
@@ -155,5 +210,6 @@ if __name__ == "__main__":
     if os.path.exists(test_image) and os.path.exists(test_json):
         detect_and_classify(test_image, test_json)
 
-    # 전체 데이터셋 테스트 (옵션)
-    # process_test_dataset(test_image_dir, test_json_dir)
+    # 전체 데이터셋 테스트
+    print("\n\nProcessing entire validation dataset...")
+    process_test_dataset(test_image_dir, test_json_dir)
