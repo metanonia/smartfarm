@@ -5,7 +5,8 @@
 ```python make_yolo.py```
 
 #### Training Detection
-```yolo train model=yolo11n.pt data=Yolo/data.yaml epochs=100 imgsz=320 task=detect```
+```yolo train model=yolo11n.pt data=Yolo/data.yaml epochs=100 imgsz=320 task=detect```<br><br>
+```yolo train model=yolo11n.pt data=Yolo/data.yaml epochs=200 imgsz=320 batch=16 mosaic=1.0 mixup=0.1 degrees=15 flipud=0.5 fliplr=0.5  scale=0.9 translate=0.1 hsv_h=0.015 hsv_s=0.7 hsv_v=0.4 iou=0.5 lr0=0.001 patience=100 optimizer=AdamW```
 
 #### Prepare Classification
 ```python make_yolo_classification.py```
