@@ -2,8 +2,8 @@
 /Data
 /Yolo
 /Yolo2
+/Yolo3
 /Yolo_Classification
-/RefModel
 /Models
 /Results
 **/**.pt

@@ -12,11 +12,11 @@ validation_files = glob.glob(validation_file_pattern, recursive=True)
 
 # 경로 설정
 train_image_src_dir = 'Data/Images/Training/TS_딸기_병해충피해이미지/'
-train_image_dst_dir = 'Yolo/train/images'
-train_label_dst_dir = 'Yolo/train/labels'
+train_image_dst_dir = 'Yolo3/train/images'
+train_label_dst_dir = 'Yolo3/train/labels'
 val_image_src_dir = 'Data/Images/Validation/VS_딸기_병해충피해이미지/'
-val_image_dst_dir = 'Yolo/val/images'
-val_label_dst_dir = 'Yolo/val/labels'
+val_image_dst_dir = 'Yolo3/val/images'
+val_label_dst_dir = 'Yolo3/val/labels'
 
 os.makedirs(train_image_dst_dir, exist_ok=True)
 os.makedirs(train_label_dst_dir, exist_ok=True)
@@ -94,7 +94,7 @@ process_files(training_files, train_image_src_dir, train_image_dst_dir, train_la
 process_files(validation_files, val_image_src_dir, val_image_dst_dir, val_label_dst_dir)
 
 # data.yaml 생성
-data_yaml_path = 'Yolo/data.yaml'
+data_yaml_path = 'Yolo3/data.yaml'
 data_yaml = {
     'train': 'train/images',
     'val': 'val/images',
