@@ -1,7 +1,9 @@
 .idea
 /Data
 /Yolo
+/Yolo2
 /Yolo_Classification
+/RefModel
 /Models
 /Results
 **/**.pt
