@@ -38,8 +38,6 @@ def process_classification_files(file_list, image_src_dir, cls_dst_dir):
             data = json.load(f)
 
         image_name = data['description']['image']
-        img_width = data['description']['width']
-        img_height = data['description']['height']
 
         extracted = {item['name']: item['value'] for item in data.get('metadata', [])}
         part_name = extracted.get('작물부위코드', '').lstrip('\ufeff')

@@ -6,5 +6,6 @@
 /Yolo_Classification
 /Models
 /Results
+/exp
 **/**.pt
 **/**.tar

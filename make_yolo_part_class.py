@@ -3,6 +3,7 @@ import shutil
 import glob
 import json
 import yaml
+import cv2   # ← 추가됨
 
 # 파일 리스트 가져오기
 training_file_pattern = 'Data/Json/Training/TL_딸기_병해충피해이미지/*.json'
@@ -37,14 +38,23 @@ def to_yolo_format(x, y, w, h, img_w, img_h):
     height = h / img_h
     return x_center, y_center, width, height
 
+
 def process_files(file_list, image_src_dir, image_dst_dir, label_dst_dir):
     for json_file in file_list:
         with open(json_file, 'r', encoding='utf-8-sig') as f:
             data = json.load(f)
 
         image = data['description']['image']
-        img_width = data['description']['width']
-        img_height = data['description']['height']
+
+        # 📌 JSON width/height는 버리고, 실제 이미지 크기를 사용
+        src_image_path = os.path.join(image_src_dir, image)
+        img = cv2.imread(src_image_path)
+
+        if img is None:
+            print(f"Warning: Image file not found, skipping: {src_image_path}")
+            continue
+
+        img_height, img_width = img.shape[:2]   # ← fix: JSON 대신 실제 크기 사용
 
         extracted = {item['name']: item['value'] for item in data.get('metadata', [])}
         part_name = extracted.get('작물부위코드', '').lstrip('\ufeff')
@@ -52,6 +62,7 @@ def process_files(file_list, image_src_dir, image_dst_dir, label_dst_dir):
 
         full_class_name = f"{part_name}_{class_name}"
         class_id = class_mapping.get(full_class_name, -1)
+
         if class_id == -1:
             raise ValueError(f"Unknown class name: {full_class_name}")
 
@@ -67,14 +78,7 @@ def process_files(file_list, image_src_dir, image_dst_dir, label_dst_dir):
                 bbox_list.append(bbox)
 
         # 이미지 복사
-        src_image_path = os.path.join(image_src_dir, image)
         dst_image_path = os.path.join(image_dst_dir, image)
-
-        if not os.path.isfile(src_image_path):
-            print(f"Warning: Image file not found, skipping: {src_image_path}")
-            continue  # 이미지 없으면 넘어감
-
-        # 이미지 복사
         shutil.copy2(src_image_path, dst_image_path)
 
         # annotation 파일 생성
@@ -88,6 +92,7 @@ def process_files(file_list, image_src_dir, image_dst_dir, label_dst_dir):
                 f.write(f"{class_id} {x_c:.6f} {y_c:.6f} {w_norm:.6f} {h_norm:.6f}\n")
 
         print(f"Processed {image} and saved annotation.")
+
 
 # 학습/검증 데이터 처리
 process_files(training_files, train_image_src_dir, train_image_dst_dir, train_label_dst_dir)
@@ -106,4 +111,3 @@ with open(data_yaml_path, 'w', encoding='utf-8') as f:
     yaml.dump(data_yaml, f, allow_unicode=True)
 
 print(f"data.yaml 생성 완료: {data_yaml_path}")
-
