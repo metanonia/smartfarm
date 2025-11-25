@@ -42,8 +42,8 @@ def to_yolo_format(x, y, w, h, img_w, img_h):
     return x_center, y_center, width, height
 
 
-def filter_fully_overlapping_bboxes(bboxes, iou_threshold=0.99):
-    """완전히(or 거의) 겹치는 박스 중 가장 작은 것만 남김"""
+def filter_fully_overlapping_bboxes(bboxes, iou_threshold=0.3):
+    """완전히(or 거의) 겹치는 박스 중 가장 큰 것만 남김"""
     def iou(a, b):
         xa1, ya1 = a['x'], a['y']
         xa2, ya2 = a['x'] + a['w'], a['y'] + a['h']
@@ -82,15 +82,14 @@ def filter_fully_overlapping_bboxes(bboxes, iou_threshold=0.99):
         if len(group) == 1:
             kept.append(bboxes[group[0]])
         else:
-            smallest_idx = min(group, key=lambda k: bboxes[k]['w'] * bboxes[k]['h'])
-            kept.append(bboxes[smallest_idx])
+            # 여기만 수정: smallest_idx → largest_idx
+            largest_idx = max(group, key=lambda k: bboxes[k]['w'] * bboxes[k]['h'])
+            kept.append(bboxes[largest_idx])
 
         for k in group:
             used[k] = True
 
     return kept
-
-
 
 def process_files(file_list, image_src_dir, image_dst_dir, label_dst_dir):
     for json_file in file_list:

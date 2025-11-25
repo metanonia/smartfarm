@@ -38,6 +38,56 @@ def to_yolo_format(x, y, w, h, img_w, img_h):
     height = h / img_h
     return x_center, y_center, width, height
 
+def filter_fully_overlapping_bboxes(bboxes, iou_threshold=0.3):
+    """겹치는 박스 중 가장 큰 것만 남김"""
+    def iou(a, b):
+        xa1, ya1 = a['x'], a['y']
+        xa2, ya2 = a['x'] + a['w'], a['y'] + a['h']
+        xb1, yb1 = b['x'], b['y']
+        xb2, yb2 = b['x'] + b['w'], b['y'] + b['h']
+
+        inter_x1 = max(xa1, xb1)
+        inter_y1 = max(ya1, yb1)
+        inter_x2 = min(xa2, xb2)
+        inter_y2 = min(ya2, yb2)
+
+        inter_w = max(0, inter_x2 - inter_x1)
+        inter_h = max(0, inter_y2 - inter_y1)
+        inter_area = inter_w * inter_h
+
+        area_a = a['w'] * a['h']
+        area_b = b['w'] * b['h']
+        union = area_a + area_b - inter_area
+        if union <= 0:
+            return 0.0
+        return inter_area / union
+
+    if len(bboxes) == 0:
+        return []
+
+    kept = []
+    used = [False] * len(bboxes)
+
+    for i in range(len(bboxes)):
+        if used[i]:
+            continue
+        group = [i]
+        for j in range(i + 1, len(bboxes)):
+            if used[j]:
+                continue
+            if iou(bboxes[i], bboxes[j]) >= iou_threshold:
+                group.append(j)
+
+        if len(group) == 1:
+            kept.append(bboxes[group[0]])
+        else:
+            largest_idx = max(group, key=lambda k: bboxes[k]['w'] * bboxes[k]['h'])
+            kept.append(bboxes[largest_idx])
+
+        for k in group:
+            used[k] = True
+
+    return kept
 
 def process_files(file_list, image_src_dir, image_dst_dir, label_dst_dir):
     for json_file in file_list:
@@ -77,6 +127,7 @@ def process_files(file_list, image_src_dir, image_dst_dir, label_dst_dir):
                 }
                 bbox_list.append(bbox)
 
+        bbox_list = filter_fully_overlapping_bboxes(bbox_list, iou_threshold=0.3)
         # 이미지 복사
         dst_image_path = os.path.join(image_dst_dir, image)
         shutil.copy2(src_image_path, dst_image_path)

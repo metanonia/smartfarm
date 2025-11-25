@@ -1,9 +1,6 @@
 .idea
 /Data
-/Yolo
-/Yolo2
-/Yolo3
-/Yolo_Classification
+/Yolo*
 /Models
 /Results
 /exp
