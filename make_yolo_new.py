@@ -8,28 +8,50 @@ import cv2
 # ✅ 파일 리스트 가져오기 - 기존 + 신규 데이터
 training_file_pattern_old = 'Data/Json/Training/TL_딸기_병해충피해이미지/*.json'
 validation_file_pattern_old = 'Data/Json/Validation/VL_딸기_병해충피해이미지/*.json'
-training_file_pattern_new = 'Data/Json/Training/TL_01.딸기_001.설향_02.역병/*.json'
-validation_file_pattern_new = 'Data/Json/Validation/VL_01.딸기_001.설향_02.역병/*.json'
 
-training_files = glob.glob(training_file_pattern_old, recursive=True) + \
-                 glob.glob(training_file_pattern_new, recursive=True)
-validation_files = glob.glob(validation_file_pattern_old, recursive=True) + \
-                 glob.glob(validation_file_pattern_new, recursive=True)
+# 신규 설향 병해 4종 (역병, 시들음병, 잎끝마름, 황화)
+training_file_patterns_new = [
+    'Data/Json/Training/TL_01.딸기_001.설향_02.역병/*.json',
+    'Data/Json/Training/TL_01.딸기_001.설향_03.시들음병/*.json',
+    'Data/Json/Training/TL_01.딸기_001.설향_04.잎끝마름/*.json',
+    'Data/Json/Training/TL_01.딸기_001.설향_05.황화/*.json',
+]
+validation_file_patterns_new = [
+    'Data/Json/Validation/VL_01.딸기_001.설향_02.역병/*.json',
+    'Data/Json/Validation/VL_01.딸기_001.설향_03.시들음병/*.json',
+    'Data/Json/Validation/VL_01.딸기_001.설향_04.잎끝마름/*.json',
+    'Data/Json/Validation/VL_01.딸기_001.설향_05.황화/*.json',
+]
+
+training_files = glob.glob(training_file_pattern_old, recursive=True)
+for p in training_file_patterns_new:
+    training_files += glob.glob(p, recursive=True)
+
+validation_files = glob.glob(validation_file_pattern_old, recursive=True)
+for p in validation_file_patterns_new:
+    validation_files += glob.glob(p, recursive=True)
 
 # 경로 설정
 train_image_src_dirs = {
     'old': 'Data/Images/Training/TS_딸기_병해충피해이미지/',
-    'new': 'Data/Images/Training/TS_01.딸기_001.설향_02.역병/'
+    'new_02': 'Data/Images/Training/TS_01.딸기_001.설향_02.역병/',
+    'new_03': 'Data/Images/Training/TS_01.딸기_001.설향_03.시들음병/',
+    'new_04': 'Data/Images/Training/TS_01.딸기_001.설향_04.잎끝마름/',
+    'new_05': 'Data/Images/Training/TS_01.딸기_001.설향_05.황화/',
 }
 val_image_src_dirs = {
     'old': 'Data/Images/Validation/VS_딸기_병해충피해이미지/',
-    'new': 'Data/Images/Training/VS_01.딸기_001.설향_02.역병/'
+    'new_02': 'Data/Images/Validation/VS_01.딸기_001.설향_02.역병/',
+    'new_03': 'Data/Images/Validation/VS_01.딸기_001.설향_03.시들음병/',
+    'new_04': 'Data/Images/Validation/VS_01.딸기_001.설향_04.잎끝마름/',
+    'new_05': 'Data/Images/Validation/VS_01.딸기_001.설향_05.황화/',
 }
-train_image_dst_dir = 'Yolo4/train/images'
-train_label_dst_dir = 'Yolo4/train/labels'
 
-val_image_dst_dir = 'Yolo4/val/images'
-val_label_dst_dir = 'Yolo4/val/labels'
+train_image_dst_dir = 'Yolo/train/images'
+train_label_dst_dir = 'Yolo/train/labels'
+
+val_image_dst_dir = 'Yolo/val/images'
+val_label_dst_dir = 'Yolo/val/labels'
 
 os.makedirs(train_image_dst_dir, exist_ok=True)
 os.makedirs(train_label_dst_dir, exist_ok=True)
@@ -41,7 +63,10 @@ class_mapping = {
     '열매_잿빛곰팡이병': 0,
     '열매_흰가루병': 1,
     '잎_흰가루병': 2,
-    '잎_역병': 3,  # 신규 추가
+    '잎_역병': 3,
+    '잎_시들음병': 4,
+    '잎_잎끝마름': 5,
+    '잎_황화': 6,
 }
 
 
@@ -107,14 +132,15 @@ def filter_fully_overlapping_bboxes(bboxes, iou_threshold=0.3):
 
 
 # ✅ 신규 데이터 처리 함수 (annotations 형식)
-def process_new_format_files(file_list, image_src_dir, image_dst_dir, label_dst_dir):
+#   -> 병해 이름(역병/시들음병/잎끝마름/황화)을 인자로 받아서 class 선택
+def process_new_format_files(file_list, image_src_dir, image_dst_dir, label_dst_dir, leaf_class_key):
+    class_id = class_mapping[leaf_class_key]
+
     for json_file in file_list:
         with open(json_file, 'r', encoding='utf-8-sig') as f:
             data = json.load(f)
 
-        # 이미지 파일명 추출
         image = data['images']['fname']
-
         src_image_path = os.path.join(image_src_dir, image)
         img = cv2.imread(src_image_path)
 
@@ -133,7 +159,6 @@ def process_new_format_files(file_list, image_src_dir, image_dst_dir, label_dst_
                 None
             )
 
-            # ✅ 잎만 선택
             if category_name == '잎':
                 bbox_dict = {
                     'x': bbox[0],
@@ -147,18 +172,13 @@ def process_new_format_files(file_list, image_src_dir, image_dst_dir, label_dst_
             print(f"Warning: No '잎' bbox found in {image}, skipping")
             continue
 
-        # ✅ 중복 필터링 - 가장 큰 bbox만 남김
         bbox_list = filter_fully_overlapping_bboxes(bbox_list, iou_threshold=0.3)
 
-        # 이미지 복사
         dst_image_path = os.path.join(image_dst_dir, image)
         shutil.copy2(src_image_path, dst_image_path)
 
-        # annotation 파일 생성
         image_basename = os.path.splitext(image)[0]
         label_path = os.path.join(label_dst_dir, image_basename + '.txt')
-
-        class_id = class_mapping['잎_역병']  # 신규 클래스
 
         with open(label_path, 'w', encoding='utf-8') as f:
             for bbox in bbox_list:
@@ -166,7 +186,7 @@ def process_new_format_files(file_list, image_src_dir, image_dst_dir, label_dst_
                 x_c, y_c, w_norm, h_norm = to_yolo_format(x, y, w, h, img_width, img_height)
                 f.write(f"{class_id} {x_c:.6f} {y_c:.6f} {w_norm:.6f} {h_norm:.6f}\n")
 
-        print(f"Processed (new format) {image} and saved annotation.")
+        print(f"Processed (new format) {image} as {leaf_class_key} and saved annotation.")
 
 
 # ✅ 기존 데이터 처리 함수 (metadata 형식)
@@ -231,20 +251,54 @@ process_old_format_files(old_training_files, train_image_src_dirs['old'],
                          train_image_dst_dir, train_label_dst_dir)
 
 print("Processing new format training data...")
-new_training_files = glob.glob(training_file_pattern_new, recursive=True)
-process_new_format_files(new_training_files, train_image_src_dirs['new'],
-                         train_image_dst_dir, train_label_dst_dir)
+
+# 역병
+new_training_files_02 = glob.glob(training_file_patterns_new[0], recursive=True)
+process_new_format_files(new_training_files_02, train_image_src_dirs['new_02'],
+                         train_image_dst_dir, train_label_dst_dir, '잎_역병')
+
+# 시들음병
+new_training_files_03 = glob.glob(training_file_patterns_new[1], recursive=True)
+process_new_format_files(new_training_files_03, train_image_src_dirs['new_03'],
+                         train_image_dst_dir, train_label_dst_dir, '잎_시들음병')
+
+# 잎끝마름
+new_training_files_04 = glob.glob(training_file_patterns_new[2], recursive=True)
+process_new_format_files(new_training_files_04, train_image_src_dirs['new_04'],
+                         train_image_dst_dir, train_label_dst_dir, '잎_잎끝마름')
+
+# 황화
+new_training_files_05 = glob.glob(training_file_patterns_new[3], recursive=True)
+process_new_format_files(new_training_files_05, train_image_src_dirs['new_05'],
+                         train_image_dst_dir, train_label_dst_dir, '잎_황화')
 
 print("Processing validation data...")
-old_validatioin_files = glob.glob(validation_file_pattern_old, recursive=True)
-process_old_format_files(old_validatioin_files, val_image_src_dirs['old'],
+old_validation_files = glob.glob(validation_file_pattern_old, recursive=True)
+process_old_format_files(old_validation_files, val_image_src_dirs['old'],
                          val_image_dst_dir, val_label_dst_dir)
-new_validation_files = glob.glob(validation_file_pattern_new, recursive=True)
-process_new_format_files(new_validation_files, val_image_src_dirs['new'],
-                         train_image_dst_dir, train_label_dst_dir)
+
+# 역병
+new_validation_files_02 = glob.glob(validation_file_patterns_new[0], recursive=True)
+process_new_format_files(new_validation_files_02, val_image_src_dirs['new_02'],
+                         val_image_dst_dir, val_label_dst_dir, '잎_역병')
+
+# 시들음병
+new_validation_files_03 = glob.glob(validation_file_patterns_new[1], recursive=True)
+process_new_format_files(new_validation_files_03, val_image_src_dirs['new_03'],
+                         val_image_dst_dir, val_label_dst_dir, '잎_시들음병')
+
+# 잎끝마름
+new_validation_files_04 = glob.glob(validation_file_patterns_new[2], recursive=True)
+process_new_format_files(new_validation_files_04, val_image_src_dirs['new_04'],
+                         val_image_dst_dir, val_label_dst_dir, '잎_잎끝마름')
+
+# 황화
+new_validation_files_05 = glob.glob(validation_file_patterns_new[3], recursive=True)
+process_new_format_files(new_validation_files_05, val_image_src_dirs['new_05'],
+                         val_image_dst_dir, val_label_dst_dir, '잎_황화')
 
 # data.yaml 생성
-data_yaml_path = 'Yolo4/data.yaml'
+data_yaml_path = 'Yolo/data.yaml'
 data_yaml = {
     'train': 'train/images',
     'val': 'val/images',
@@ -258,3 +312,4 @@ with open(data_yaml_path, 'w', encoding='utf-8') as f:
 print(f"data.yaml 생성 완료: {data_yaml_path}")
 print(f"Total classes: {len(class_mapping)}")
 print(f"Class mapping: {class_mapping}")
+
