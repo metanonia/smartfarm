@@ -131,11 +131,19 @@ def filter_fully_overlapping_bboxes(bboxes, iou_threshold=0.3):
     return kept
 
 # 병해별 너비/높이 필터 값 매핑
-size_thresholds = {
+# 훈련시에는 큰 바운딩 박스만 고려
+training_thresholds = {
     '잎_역병': 200,
     '잎_시들음병': 250,
     '잎_잎끝마름': 300,
     '잎_황화': 300,
+}
+# 검증시에는 작은 바운딩 박스도 함께 확인 (Precision 상승 효과)
+validation_thresholds = {
+    '잎_역병': 100,
+    '잎_시들음병': 125,
+    '잎_잎끝마름': 150,
+    '잎_황화': 150,
 }
 
 def process_new_format_files(file_list, image_src_dir, image_dst_dir, label_dst_dir, leaf_class_key, size_thresholds):
@@ -265,22 +273,22 @@ print("Processing new format training data...")
 # 역병
 new_training_files_02 = glob.glob(training_file_patterns_new[0], recursive=True)
 process_new_format_files(new_training_files_02, train_image_src_dirs['new_02'],
-                         train_image_dst_dir, train_label_dst_dir, '잎_역병', size_thresholds)
+                         train_image_dst_dir, train_label_dst_dir, '잎_역병', training_thresholds)
 
 # 시들음병
 new_training_files_03 = glob.glob(training_file_patterns_new[1], recursive=True)
 process_new_format_files(new_training_files_03, train_image_src_dirs['new_03'],
-                         train_image_dst_dir, train_label_dst_dir, '잎_시들음병', size_thresholds)
+                         train_image_dst_dir, train_label_dst_dir, '잎_시들음병', training_thresholds)
 
 # 잎끝마름
 new_training_files_04 = glob.glob(training_file_patterns_new[2], recursive=True)
 process_new_format_files(new_training_files_04, train_image_src_dirs['new_04'],
-                         train_image_dst_dir, train_label_dst_dir, '잎_잎끝마름', size_thresholds)
+                         train_image_dst_dir, train_label_dst_dir, '잎_잎끝마름', training_thresholds)
 
 # 황화
 new_training_files_05 = glob.glob(training_file_patterns_new[3], recursive=True)
 process_new_format_files(new_training_files_05, train_image_src_dirs['new_05'],
-                         train_image_dst_dir, train_label_dst_dir, '잎_황화', size_thresholds)
+                         train_image_dst_dir, train_label_dst_dir, '잎_황화', training_thresholds)
 
 print("Processing validation data...")
 old_validation_files = glob.glob(validation_file_pattern_old, recursive=True)
@@ -290,22 +298,22 @@ process_old_format_files(old_validation_files, val_image_src_dirs['old'],
 # 역병
 new_validation_files_02 = glob.glob(validation_file_patterns_new[0], recursive=True)
 process_new_format_files(new_validation_files_02, val_image_src_dirs['new_02'],
-                         val_image_dst_dir, val_label_dst_dir, '잎_역병')
+                         val_image_dst_dir, val_label_dst_dir, '잎_역병', validation_thresholds)
 
 # 시들음병
 new_validation_files_03 = glob.glob(validation_file_patterns_new[1], recursive=True)
 process_new_format_files(new_validation_files_03, val_image_src_dirs['new_03'],
-                         val_image_dst_dir, val_label_dst_dir, '잎_시들음병')
+                         val_image_dst_dir, val_label_dst_dir, '잎_시들음병', validation_thresholds)
 
 # 잎끝마름
 new_validation_files_04 = glob.glob(validation_file_patterns_new[2], recursive=True)
 process_new_format_files(new_validation_files_04, val_image_src_dirs['new_04'],
-                         val_image_dst_dir, val_label_dst_dir, '잎_잎끝마름')
+                         val_image_dst_dir, val_label_dst_dir, '잎_잎끝마름', validation_thresholds)
 
 # 황화
 new_validation_files_05 = glob.glob(validation_file_patterns_new[3], recursive=True)
 process_new_format_files(new_validation_files_05, val_image_src_dirs['new_05'],
-                         val_image_dst_dir, val_label_dst_dir, '잎_황화')
+                         val_image_dst_dir, val_label_dst_dir, '잎_황화', validation_thresholds)
 
 # data.yaml 생성
 data_yaml_path = 'Yolo/data.yaml'
