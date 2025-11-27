@@ -130,11 +130,17 @@ def filter_fully_overlapping_bboxes(bboxes, iou_threshold=0.3):
 
     return kept
 
+# 병해별 너비/높이 필터 값 매핑
+size_thresholds = {
+    '잎_역병': 200,
+    '잎_시들음병': 250,
+    '잎_잎끝마름': 300,
+    '잎_황화': 300,
+}
 
-# ✅ 신규 데이터 처리 함수 (annotations 형식)
-#   -> 병해 이름(역병/시들음병/잎끝마름/황화)을 인자로 받아서 class 선택
-def process_new_format_files(file_list, image_src_dir, image_dst_dir, label_dst_dir, leaf_class_key):
+def process_new_format_files(file_list, image_src_dir, image_dst_dir, label_dst_dir, leaf_class_key, size_thresholds):
     class_id = class_mapping[leaf_class_key]
+    threshold = size_thresholds.get(leaf_class_key, 0)  # 없으면 0 (필터 없음)
 
     for json_file in file_list:
         with open(json_file, 'r', encoding='utf-8-sig') as f:
@@ -150,7 +156,7 @@ def process_new_format_files(file_list, image_src_dir, image_dst_dir, label_dst_
 
         img_height, img_width = img.shape[:2]
 
-        # ✅ annotations에서 bbox 추출 - 잎만 필터링
+        # annotations에서 bbox 추출 - 잎만 필터링
         bbox_list = []
         for annotation in data.get('annotations', []):
             bbox = annotation['bbox']  # [x, y, width, height]
@@ -160,16 +166,20 @@ def process_new_format_files(file_list, image_src_dir, image_dst_dir, label_dst_
             )
 
             if category_name == '잎':
-                bbox_dict = {
-                    'x': bbox[0],
-                    'y': bbox[1],
-                    'w': bbox[2],
-                    'h': bbox[3],
-                }
-                bbox_list.append(bbox_dict)
+                w = bbox[2]
+                h = bbox[3]
+                # 너비와 높이 자동 필터링 적용
+                if w >= threshold and h >= threshold:
+                    bbox_dict = {
+                        'x': bbox[0],
+                        'y': bbox[1],
+                        'w': w,
+                        'h': h,
+                    }
+                    bbox_list.append(bbox_dict)
 
         if len(bbox_list) == 0:
-            print(f"Warning: No '잎' bbox found in {image}, skipping")
+            print(f"Warning: No '잎' bbox meeting size threshold in {image}, skipping")
             continue
 
         bbox_list = filter_fully_overlapping_bboxes(bbox_list, iou_threshold=0.3)
@@ -186,7 +196,7 @@ def process_new_format_files(file_list, image_src_dir, image_dst_dir, label_dst_
                 x_c, y_c, w_norm, h_norm = to_yolo_format(x, y, w, h, img_width, img_height)
                 f.write(f"{class_id} {x_c:.6f} {y_c:.6f} {w_norm:.6f} {h_norm:.6f}\n")
 
-        print(f"Processed (new format) {image} as {leaf_class_key} and saved annotation.")
+        print(f"Processed (new format) {image} as {leaf_class_key} with size filter {threshold} and saved annotation.")
 
 
 # ✅ 기존 데이터 처리 함수 (metadata 형식)
@@ -255,22 +265,22 @@ print("Processing new format training data...")
 # 역병
 new_training_files_02 = glob.glob(training_file_patterns_new[0], recursive=True)
 process_new_format_files(new_training_files_02, train_image_src_dirs['new_02'],
-                         train_image_dst_dir, train_label_dst_dir, '잎_역병')
+                         train_image_dst_dir, train_label_dst_dir, '잎_역병', size_thresholds)
 
 # 시들음병
 new_training_files_03 = glob.glob(training_file_patterns_new[1], recursive=True)
 process_new_format_files(new_training_files_03, train_image_src_dirs['new_03'],
-                         train_image_dst_dir, train_label_dst_dir, '잎_시들음병')
+                         train_image_dst_dir, train_label_dst_dir, '잎_시들음병', size_thresholds)
 
 # 잎끝마름
 new_training_files_04 = glob.glob(training_file_patterns_new[2], recursive=True)
 process_new_format_files(new_training_files_04, train_image_src_dirs['new_04'],
-                         train_image_dst_dir, train_label_dst_dir, '잎_잎끝마름')
+                         train_image_dst_dir, train_label_dst_dir, '잎_잎끝마름', size_thresholds)
 
 # 황화
 new_training_files_05 = glob.glob(training_file_patterns_new[3], recursive=True)
 process_new_format_files(new_training_files_05, train_image_src_dirs['new_05'],
-                         train_image_dst_dir, train_label_dst_dir, '잎_황화')
+                         train_image_dst_dir, train_label_dst_dir, '잎_황화', size_thresholds)
 
 print("Processing validation data...")
 old_validation_files = glob.glob(validation_file_pattern_old, recursive=True)
