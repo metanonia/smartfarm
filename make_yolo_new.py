@@ -138,12 +138,14 @@ training_thresholds = {
     '잎_잎끝마름': 300,
     '잎_황화': 300,
 }
-# 검증시에는 작은 바운딩 박스도 함께 확인 (Precision 상승 효과)
+# 검증시에는 작은 바운딩 박스도 함께 확인
+# 훈련과 동일한 값을 지정해서 R값 확인
+# 0 또는 작업값을 지정해서 P값 확인
 validation_thresholds = {
-    '잎_역병': 100,
-    '잎_시들음병': 125,
-    '잎_잎끝마름': 150,
-    '잎_황화': 150,
+    '잎_역병': 0,
+    '잎_시들음병': 0,
+    '잎_잎끝마름': 0,
+    '잎_황화': 0,
 }
 
 def process_new_format_files(file_list, image_src_dir, image_dst_dir, label_dst_dir, leaf_class_key, size_thresholds):
