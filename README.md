@@ -14,8 +14,9 @@
 - 단일 객체에 복수의 바운딩 박스가 있어서 ReCall 값이 낮게 나옴 (단일 바운딩 박스로 처리)
 
 #### Training Detection
-```yolo train model=yolo11n.pt data=Yolo/data.yaml epochs=100 imgsz=640 task=detect```<br><br>
-```yolo train model=yolo11n.pt data=Yolo/data.yaml epochs=100 imgsz=640 batch=16 mosaic=0.5 mixup=0.02 degrees=20 ```
+```yolo train model=yolo11n.pt data=Yolo/data.yaml epochs=100 imgsz=640 task=detect```<br>
+```yolo train model=best.pt data=Yolo/data.yaml epochs=100 imgsz=640 multi_scale=True mosaic=10.0 mixup=0.1 task=detect```<br>
+```yolo train model=yolo11n.pt data=Yolo/data.yaml epochs=100 imgsz=640 batch=16 mosaic=0.5 mixup=0.02 degrees=20 ```<br>
 - 작은 사이즈로 학습시, 큰 이미지를 이용하여 병증을 detection하는 경우, 검출이 잘 안됨
 
 #### IoU값 변경 Validation
