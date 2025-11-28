@@ -142,10 +142,10 @@ training_thresholds = {
 # 훈련과 동일한 값을 지정해서 R값 확인
 # 0 또는 작은값을 지정해서 P값 확인
 validation_thresholds = {
-    '잎_역병': 0,
-    '잎_시들음병': 0,
-    '잎_잎끝마름': 0,
-    '잎_황화': 0,
+    '잎_역병': 200,
+    '잎_시들음병': 250,
+    '잎_잎끝마름': 300,
+    '잎_황화': 300,
 }
 
 def process_new_format_files(file_list, image_src_dir, image_dst_dir, label_dst_dir, leaf_class_key, size_thresholds):
