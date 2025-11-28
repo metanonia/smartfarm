@@ -9,6 +9,10 @@ import cv2
 training_file_pattern_old = 'Data/Json/Training/TL_딸기_병해충피해이미지/*.json'
 validation_file_pattern_old = 'Data/Json/Validation/VL_딸기_병해충피해이미지/*.json'
 
+training_file_pattern_strawberry = 'Data/Json/Training/[라벨]04.딸기_1.질병/*.json'
+validation_file_pattern_strawberry = 'Data/Json/Validation/[라벨]04.딸기_1.질병/*.json'
+
+
 # 신규 설향 병해 4종 (역병, 시들음병, 잎끝마름, 황화)
 training_file_patterns_new = [
     'Data/Json/Training/TL_01.딸기_001.설향_02.역병/*.json',
@@ -23,17 +27,20 @@ validation_file_patterns_new = [
     'Data/Json/Validation/VL_01.딸기_001.설향_05.황화/*.json',
 ]
 
-training_files = glob.glob(training_file_pattern_old, recursive=True)
-for p in training_file_patterns_new:
-    training_files += glob.glob(p, recursive=True)
-
-validation_files = glob.glob(validation_file_pattern_old, recursive=True)
-for p in validation_file_patterns_new:
-    validation_files += glob.glob(p, recursive=True)
+# training_files = glob.glob(training_file_pattern_old, recursive=True)
+# training_files += glob.glob(training_file_pattern_strawberry, recursive=True)
+# for p in training_file_patterns_new:
+#     training_files += glob.glob(p, recursive=True)
+#
+# validation_files = glob.glob(validation_file_pattern_old, recursive=True)
+# validation_files += glob.glob(validation_file_pattern_strawberry, recursive=True)
+# for p in validation_file_patterns_new:
+#     validation_files += glob.glob(p, recursive=True)
 
 # 경로 설정
 train_image_src_dirs = {
     'old': 'Data/Images/Training/TS_딸기_병해충피해이미지/',
+    'strawberry': 'Data/Images/Training/04.딸기_1.질병/',
     'new_02': 'Data/Images/Training/TS_01.딸기_001.설향_02.역병/',
     'new_03': 'Data/Images/Training/TS_01.딸기_001.설향_03.시들음병/',
     'new_04': 'Data/Images/Training/TS_01.딸기_001.설향_04.잎끝마름/',
@@ -41,6 +48,7 @@ train_image_src_dirs = {
 }
 val_image_src_dirs = {
     'old': 'Data/Images/Validation/VS_딸기_병해충피해이미지/',
+    'strawberry': 'Data/Images/Validation/04.딸기_1.질병/',
     'new_02': 'Data/Images/Validation/VS_01.딸기_001.설향_02.역병/',
     'new_03': 'Data/Images/Validation/VS_01.딸기_001.설향_03.시들음병/',
     'new_04': 'Data/Images/Validation/VS_01.딸기_001.설향_04.잎끝마름/',
@@ -146,7 +154,59 @@ validation_thresholds = {
     '잎_시들음병': 250,
     '잎_잎끝마름': 300,
     '잎_황화': 300,
+
 }
+
+
+def process_strawberry_files(file_list, image_src_dir, image_dst_dir, label_dst_dir):
+    """04.딸기_1.질병 형식 처리"""
+    disease_mapping = {7: '열매_잿빛곰팡이병', 8: '열매_흰가루병'}
+
+    for json_file in file_list:
+        with open(json_file, 'r', encoding='utf-8-sig') as f:
+            data = json.load(f)
+
+        image_filename = data['description']['image']
+        src_image_path = os.path.join(image_src_dir, image_filename)
+        img = cv2.imread(src_image_path)
+
+        if img is None:
+            print(f"Warning: Image not found: {src_image_path}")
+            continue
+
+        img_height, img_width = img.shape[:2]
+        disease_code = data['annotations']['disease']
+        class_name = disease_mapping.get(disease_code, None)
+
+        if class_name is None:
+            print(f"Warning: Unknown disease code {disease_code} in {image_filename}")
+            continue
+
+        class_id = class_mapping[class_name]
+
+        # points에서 bbox 추출 (xtl, ytl, xbr, ybr → x,y,w,h)
+        bbox_list = []
+        for point in data['annotations']['points']:
+            xtl, ytl = point['xtl'], point['ytl']
+            xbr, ybr = point['xbr'], point['ybr']
+            w, h = xbr - xtl, ybr - ytl
+            bbox_list.append({'x': xtl, 'y': ytl, 'w': w, 'h': h})
+
+        bbox_list = filter_fully_overlapping_bboxes(bbox_list, iou_threshold=0.3)
+
+        dst_image_path = os.path.join(image_dst_dir, image_filename)
+        shutil.copy2(src_image_path, dst_image_path)
+
+        image_basename = os.path.splitext(image_filename)[0]
+        label_path = os.path.join(label_dst_dir, image_basename + '.txt')
+
+        with open(label_path, 'w', encoding='utf-8') as f:
+            for bbox in bbox_list:
+                x, y, w, h = bbox['x'], bbox['y'], bbox['w'], bbox['h']
+                x_c, y_c, w_norm, h_norm = to_yolo_format(x, y, w, h, img_width, img_height)
+                f.write(f"{class_id} {x_c:.6f} {y_c:.6f} {w_norm:.6f} {h_norm:.6f}\n")
+
+        print(f"Processed strawberry {image_filename} as {class_name}")
 
 def process_new_format_files(file_list, image_src_dir, image_dst_dir, label_dst_dir, leaf_class_key, size_thresholds):
     class_id = class_mapping[leaf_class_key]
@@ -270,6 +330,11 @@ old_training_files = glob.glob(training_file_pattern_old, recursive=True)
 process_old_format_files(old_training_files, train_image_src_dirs['old'],
                          train_image_dst_dir, train_label_dst_dir)
 
+print("Processing 04.딸기_1.질병 training data...")
+strawberry_training_files = glob.glob(training_file_pattern_strawberry, recursive=True)
+process_strawberry_files(strawberry_training_files, train_image_src_dirs['strawberry'],
+                         train_image_dst_dir, train_label_dst_dir)
+
 print("Processing new format training data...")
 
 # 역병
@@ -295,6 +360,12 @@ process_new_format_files(new_training_files_05, train_image_src_dirs['new_05'],
 print("Processing validation data...")
 old_validation_files = glob.glob(validation_file_pattern_old, recursive=True)
 process_old_format_files(old_validation_files, val_image_src_dirs['old'],
+                         val_image_dst_dir, val_label_dst_dir)
+
+# ✅ 검증 데이터 처리 - 딸기 데이터 추가
+print("Processing 04.딸기_1.질병 validation data...")
+strawberry_validation_files = glob.glob(validation_file_pattern_strawberry, recursive=True)
+process_strawberry_files(strawberry_validation_files, val_image_src_dirs['strawberry'],
                          val_image_dst_dir, val_label_dst_dir)
 
 # 역병
