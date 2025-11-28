@@ -7,7 +7,7 @@
 
 <br>
 
-#### Prepare Dectection
+#### Prepare Dectection (지능형 스마트팜 및 시설작물 질병 이미지 데이터 이용)
 ```python make_yolo.py```<br>
 ```python make_yolo_part_class.py```<br>
 - json의 이미지크기와 실제 데이터 이미지 크기가 다름
@@ -21,7 +21,7 @@
 ```yolo val  model=./best.pt data=Yolo/data.yaml imgsz=320 iou=0.3```
 
 #### False Negative 확인
-```yolo val  model=./best.pt data=Yolo/data.yaml imgsz=320 save=True save_txt=True save_conf=True```
+```yolo val  model=./best.pt data=Yolo/data.yaml imgsz=320 save=True save_txt=True save_conf=True`
 
 #### Prepare Classification
 ```python make_yolo_classification.py```
