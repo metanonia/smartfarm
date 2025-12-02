@@ -5,4 +5,6 @@
 /Results
 /exp
 **/**.pt
+**/**.onnx 
 **/**.tar
+.DS_Store

@@ -11,15 +11,15 @@
 
 
 ### Prepare Dectection (지능형 스마트팜 및 시설작물 질병 이미지 데이터 이용)
-```python make_yolo.py```<br>
+```python make_yolo.py```<br/>
 ```python make_yolo_part_class.py```<br>
 - json의 이미지크기와 실제 데이터 이미지 크기가 다름
 - 단일 객체에 복수의 바운딩 박스가 있어서 ReCall 값이 낮게 나옴 (단일 바운딩 박스로 처리)
 
 ### Training Detection (yolo11n)
-```yolo train model=yolo11n.pt data=Yolo/data.yaml epochs=100 imgsz=640 task=detect```<br>
-```yolo train model=best.pt data=Yolo/data.yaml epochs=100 imgsz=640 multi_scale=True mosaic=10.0 mixup=0.1 task=detect```<br>
-```yolo train model=yolo11n.pt data=Yolo/data.yaml epochs=100 imgsz=640 batch=16 mosaic=0.5 mixup=0.02 degrees=20 ```<br>
+```yolo train model=yolo11n.pt data=Yolo/data.yaml epochs=100 imgsz=640 task=detect```<br/>
+```yolo train model=best.pt data=Yolo/data.yaml epochs=100 imgsz=640 multi_scale=True mosaic=10.0 mixup=0.1 task=detect```<br/>
+```yolo train model=yolo11n.pt data=Yolo/data.yaml epochs=100 imgsz=640 batch=16 mosaic=0.5 mixup=0.02 degrees=20 ```<br/>
 - 작은 사이즈로 학습시, 큰 이미지를 이용하여 병증을 detection하는 경우, 검출이 잘 안됨
 
 ### IoU값 변경 Validation
@@ -39,3 +39,8 @@
 
 ### ONNX 생성
 ```yolo export model=detect_model.pt format=onnx opset=17```
+
+
+### 모바일 적용시 양자화 필요
+```yolo train model=best.pt data=data.yaml qat=1 epochs=5 lr0=1e-5```<br/>
+```yolo export model=runs/detect/train/weights/best.pt format=onnx int8```<br/>
